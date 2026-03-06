@@ -63,6 +63,7 @@
 * #361 Many extension settings have been renamed to leverage Visual Studio Code's setting grouping, to make Git Graph settings easier to find / discover. If you previously used any of the renamed settings, the value you previously set will still be used until you set the equivalent new setting.
 * #363 Improved support for High Contrast Visual Studio Code Color Theme's.
 * #365 Improved the topological check to determine whether the "Drop..." action is available for a commit (when viewing the Commit Context Menu).
+* Added new "Edit Commit Message" action on the commit context menu to update the message of any commit on the current branch. Uses `git commit --amend` for the HEAD commit and interactive rebase for older commits.
 * #369 When fetching commit author avatars from Gravatar, fetch email addresses case-insensitive.
 * #372 Improved handling of repositories on Mapped Network Drives on Windows with Git >= 2.25.0.
 * #376 When loading the Repository Settings Widget, no longer require a global .gitconfig file to exist.

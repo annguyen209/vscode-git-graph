@@ -15,6 +15,7 @@ View a Git Graph of your repository, and easily perform Git actions from the gra
         * Create, Checkout, Delete, Fetch, Merge, Pull, Push, Rebase, Rename & Reset Branches
         * Add, Delete & Push Tags
         * Checkout, Cherry Pick, Drop, Merge & Revert Commits
+        * Edit the message of any commit on the current branch via the commit's context menu
         * Clean, Reset & Stash Uncommitted Changes
         * Apply, Create Branch From, Drop & Pop Stashes
         * View annotated tag details (name, email, date and message)

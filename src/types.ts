@@ -368,6 +368,7 @@ export interface ContextMenuActionsVisibility {
 		readonly reset: boolean;
 		readonly copyHash: boolean;
 		readonly copySubject: boolean;
+		readonly editMessage: boolean;
 	};
 	readonly commitDetailsViewFile: {
 		readonly viewDiff: boolean;
@@ -820,6 +821,15 @@ export interface ResponseDropCommit extends ResponseWithErrorInfo {
 	readonly command: 'dropCommit';
 }
 
+export interface RequestUpdateCommitMessage extends RepoRequest {
+	readonly command: 'updateCommitMessage';
+	readonly commitHash: string;
+	readonly newMessage: string;
+}
+export interface ResponseUpdateCommitMessage extends ResponseWithErrorInfo {
+	readonly command: 'updateCommitMessage';
+}
+
 export interface RequestDropStash extends RepoRequest {
 	readonly command: 'dropStash';
 	readonly selector: string;
@@ -1269,6 +1279,7 @@ export type RequestMessage =
 	| RequestDeleteTag
 	| RequestDeleteUserDetails
 	| RequestDropCommit
+	| RequestUpdateCommitMessage
 	| RequestDropStash
 	| RequestEditRemote
 	| RequestEditUserDetails
@@ -1333,6 +1344,7 @@ export type ResponseMessage =
 	| ResponseDeleteTag
 	| ResponseDeleteUserDetails
 	| ResponseDropCommit
+	| ResponseUpdateCommitMessage
 	| ResponseDropStash
 	| ResponseEditRemote
 	| ResponseEditUserDetails
