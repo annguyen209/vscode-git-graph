@@ -27,7 +27,7 @@
 		"url": "https://github.com/mhutchie/vscode-git-graph/issues"
 	},
 	"qna": "https://github.com/mhutchie/vscode-git-graph/wiki/Support-Resources",
-	"license": "SEE LICENSE IN 'LICENSE'",
+	"license": "MIT",
 	"icon": "resources/icon.png",
 	"engines": {
 		"vscode": "^1.38.0"
