@@ -6128,6 +6128,62 @@ describe('DataSource', () => {
 		});
 	});
 
+	describe('updateCommitMessage', () => {
+		it('Should amend HEAD commit message when commit is HEAD and signing disabled', async () => {
+			// Setup
+			// first rev-parse, then commit amend
+			mockGitSuccessOnce('1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b\n');
+			mockGitSuccessOnce();
+			vscode.mockExtensionSettingReturnValue('repository.sign.commits', false);
+
+			// Run
+			const result = await dataSource.updateCommitMessage('/path/to/repo', '1a2b3c4d5e6f1a2b3c4d5e6f1a2b3c4d5e6f1a2b', 'New msg');
+
+			// Assert
+			expect(result).toBe(null);
+			expect(spyOnSpawn).toHaveBeenNthCalledWith(1, '/path/to/git', ['rev-parse', 'HEAD'], expect.objectContaining({ cwd: '/path/to/repo' }));
+			expect(spyOnSpawn).toHaveBeenNthCalledWith(2, '/path/to/git', ['commit', '--amend', '-m', 'New msg'], expect.objectContaining({ cwd: '/path/to/repo' }));
+		});
+
+		it('Should amend HEAD commit message when signing enabled', async () => {
+			// Setup
+			mockGitSuccessOnce('hash\n');
+			mockGitSuccessOnce();
+			vscode.mockExtensionSettingReturnValue('repository.sign.commits', true);
+
+			// Run
+			const result = await dataSource.updateCommitMessage('/path/to/repo', 'hash', 'msg');
+
+			// Assert
+			expect(result).toBe(null);
+			expect(spyOnSpawn).toHaveBeenNthCalledWith(2, '/path/to/git', ['commit', '-S', '--amend', '-m', 'msg'], expect.objectContaining({ cwd: '/path/to/repo' }));
+		});
+
+		it('Should return error when commit is not HEAD', async () => {
+			// Setup
+			mockGitSuccessOnce('different\n');
+
+			// Run
+			const result = await dataSource.updateCommitMessage('/path/to/repo', 'hash', 'msg');
+
+			// Assert
+			expect(result).toBe('Commit must be the current HEAD to update its message.');
+		});
+
+		it('Should return error message thrown by git when amend fails', async () => {
+			// Setup
+			mockGitSuccessOnce('hash\n');
+			mockGitThrowingErrorOnce();
+			vscode.mockExtensionSettingReturnValue('repository.sign.commits', false);
+
+			// Run
+			const result = await dataSource.updateCommitMessage('/path/to/repo', 'hash', 'msg');
+
+			// Assert
+			expect(result).toBe('error message');
+		});
+	});
+
 	describe('dropCommit', () => {
 		it('Should drop a commit', async () => {
 			// Setup

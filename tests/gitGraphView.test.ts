@@ -830,6 +830,28 @@ describe('GitGraphView', () => {
 			});
 		});
 
+		// updateCommitMessage message handling
+		describe('updateCommitMessage', () => {
+			it('Should request commit message update and return error', async () => {
+				const spyOnUpdate = jest.spyOn(dataSource, 'updateCommitMessage');
+				spyOnUpdate.mockResolvedValueOnce('some error');
+
+				onDidReceiveMessage({
+					command: 'updateCommitMessage',
+					repo: '/path/to/repo',
+					commitHash: 'abc',
+					newMessage: 'new'
+				});
+
+				await waitForExpect(() => {
+					expect(spyOnUpdate).toHaveBeenCalledWith('/path/to/repo', 'abc', 'new');
+					expect(messages).toStrictEqual([
+						{ command: 'updateCommitMessage', error: 'some error' }
+					]);
+				});
+			});
+		});
+
 		describe('cherrypickCommit', () => {
 			it('Should cherrypick a commit', async () => {
 				// Setup

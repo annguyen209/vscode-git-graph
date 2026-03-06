@@ -221,7 +221,7 @@ class FindWidget {
 				findPattern = new RegExp(regexText, flags);
 				findGlobalPattern = new RegExp(regexText, 'g' + flags);
 				this.widgetElem.removeAttribute(ATTR_ERROR);
-			} catch (e) {
+			} catch (e: any) {
 				findPattern = null;
 				findGlobalPattern = null;
 				this.widgetElem.setAttribute(ATTR_ERROR, e.message);

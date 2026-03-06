@@ -288,7 +288,8 @@ describe('Config', () => {
 					rebase: true,
 					reset: true,
 					copyHash: true,
-					copySubject: true
+					copySubject: true,
+					editMessage: true,
 				},
 				commitDetailsViewFile: {
 					viewDiff: true,
@@ -370,7 +371,8 @@ describe('Config', () => {
 					rebase: true,
 					reset: true,
 					copyHash: true,
-					copySubject: true
+					copySubject: true,
+					editMessage: true,
 				},
 				commitDetailsViewFile: {
 					viewDiff: true,
@@ -427,10 +429,8 @@ describe('Config', () => {
 					rename: false
 				},
 				commit: {
-					checkout: false
-				},
-				commitDetailsViewFile: {
-					resetFileToThisRevision: false
+					checkout: false,
+					editMessage: false
 				},
 				remoteBranch: {
 					delete: true,
@@ -470,7 +470,8 @@ describe('Config', () => {
 					rebase: true,
 					reset: true,
 					copyHash: true,
-					copySubject: true
+					copySubject: true,
+					editMessage: false,
 				},
 				commitDetailsViewFile: {
 					viewDiff: true,
