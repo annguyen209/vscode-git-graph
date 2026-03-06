@@ -1,6 +1,7 @@
 import * as cp from 'child_process';
 import * as fs from 'fs';
 import { decode, encodingExists } from 'iconv-lite';
+import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { AskpassEnvironment, AskpassManager } from './askpass/askpassManager';
@@ -59,6 +60,9 @@ export class DataSource extends Disposable {
 
 		const askpassManager = new AskpassManager();
 		this.askpassEnv = askpassManager.getEnv();
+
+		fs.chmod(path.join(__dirname, 'reword', 'rewordSequenceEditor.sh'), '755', () => { });
+		fs.chmod(path.join(__dirname, 'reword', 'rewordMessageEditor.sh'), '755', () => { });
 
 		this.registerDisposables(
 			onDidChangeConfiguration((event) => {
@@ -421,18 +425,20 @@ export class DataSource extends Disposable {
 	 * @returns The comparison details.
 	 */
 	public getCommitComparison(repo: string, fromHash: string, toHash: string): Promise<GitCommitComparisonData> {
-		return Promise.all<DiffNameStatusRecord[], DiffNumStatRecord[], GitStatusFiles | null>([
+		return Promise.all([
 			this.getDiffNameStatus(repo, fromHash, toHash === UNCOMMITTED ? '' : toHash),
 			this.getDiffNumStat(repo, fromHash, toHash === UNCOMMITTED ? '' : toHash),
 			toHash === UNCOMMITTED ? this.getStatus(repo) : Promise.resolve(null)
-		]).then((results) => {
-			return {
-				fileChanges: generateFileChanges(results[0], results[1], results[2]),
-				error: null
-			};
-		}).catch((errorMessage) => {
-			return { fileChanges: [], error: errorMessage };
-		});
+		])
+			.then((results: [DiffNameStatusRecord[], DiffNumStatRecord[], GitStatusFiles | null]) => {
+				return {
+					fileChanges: generateFileChanges(results[0], results[1], results[2]),
+					error: null
+				};
+			})
+			.catch((errorMessage) => {
+				return { fileChanges: [], error: errorMessage };
+			});
 	}
 
 	/**
@@ -1122,6 +1128,66 @@ export class DataSource extends Disposable {
 		return this.runGitCommand(args, repo);
 	}
 
+	/**
+	 * Update the message of a commit. For the current HEAD commit, uses `git commit --amend`.
+	 * For non-HEAD commits, uses an interactive rebase with scripted editors.
+	 * @param repo The path of the repository.
+	 * @param commitHash The hash of the commit to update.
+	 * @param newMessage The new commit message subject.
+	 * @returns The ErrorInfo from the executed command.
+	 */
+	public updateCommitMessage(repo: string, commitHash: string, newMessage: string) {
+		return this.spawnGit(['rev-parse', 'HEAD'], repo, (stdout) => stdout.trim()).then(async (head) => {
+			if (head === commitHash) {
+				// HEAD commit: amend directly
+				const args = ['commit', '--amend', '-m', newMessage];
+				if (getConfig().signCommits) {
+					args.splice(1, 0, '-S');
+				}
+				return this.runGitCommand(args, repo);
+			} else {
+				// Non-HEAD commit: use interactive rebase with scripted editors
+				return this.rewordNonHeadCommit(repo, commitHash, newMessage);
+			}
+		}, (err) => err);
+	}
+
+	/**
+	 * Reword the message of a non-HEAD commit using interactive rebase with scripted editors.
+	 * @param repo The path of the repository.
+	 * @param commitHash The hash of the commit to update.
+	 * @param newMessage The new commit message.
+	 * @returns The ErrorInfo from the executed command.
+	 */
+	private async rewordNonHeadCommit(repo: string, commitHash: string, newMessage: string): Promise<ErrorInfo> {
+		const shortHash = commitHash.substring(0, 7);
+		const tmpMsgFile = path.join(os.tmpdir(), 'vscode-git-graph-reword-' + Date.now() + '.txt');
+
+		try {
+			fs.writeFileSync(tmpMsgFile, newMessage, 'utf8');
+
+			const rewordDir = path.join(__dirname, 'reword');
+			const additionalEnv: NodeJS.ProcessEnv = {
+				ELECTRON_RUN_AS_NODE: '1',
+				VSCODE_GIT_GRAPH_REWORD_NODE: process.execPath,
+				VSCODE_GIT_GRAPH_REWORD_MAIN: path.join(rewordDir, 'rewordMain.js'),
+				VSCODE_GIT_GRAPH_REWORD_HASH: shortHash,
+				VSCODE_GIT_GRAPH_REWORD_MSG_FILE: tmpMsgFile,
+				GIT_SEQUENCE_EDITOR: path.join(rewordDir, 'rewordSequenceEditor.sh'),
+				GIT_EDITOR: path.join(rewordDir, 'rewordMessageEditor.sh')
+			};
+
+			const args = ['rebase', '-i', commitHash + '^'];
+			if (getConfig().signCommits) {
+				args.splice(1, 0, '-S');
+			}
+
+			return await this.runGitCommandWithEnv(args, repo, additionalEnv);
+		} finally {
+			try { fs.unlinkSync(tmpMsgFile); } catch (_) { }
+		}
+	}
+
 
 	/* Git Action Methods - Config */
 
@@ -1798,6 +1864,10 @@ export class DataSource extends Disposable {
 		return this._spawnGit(args, repo, () => null).catch((errorMessage: string) => errorMessage);
 	}
 
+	private runGitCommandWithEnv(args: string[], repo: string, additionalEnv: NodeJS.ProcessEnv): Promise<ErrorInfo> {
+		return this._spawnGit(args, repo, () => null, false, additionalEnv).catch((errorMessage: string) => errorMessage);
+	}
+
 	/**
 	 * Spawn Git, with the return value resolved from `stdout` as a string.
 	 * @param args The arguments to pass to Git.
@@ -1815,7 +1885,7 @@ export class DataSource extends Disposable {
 	 * @param resolveValue A callback invoked to resolve the data from `stdout` and `stderr`.
 	 * @param ignoreExitCode Ignore the exit code returned by Git (default: `FALSE`).
 	 */
-	private _spawnGit<T>(args: string[], repo: string, resolveValue: { (stdout: Buffer, stderr: string): T }, ignoreExitCode: boolean = false) {
+	private _spawnGit<T>(args: string[], repo: string, resolveValue: { (stdout: Buffer, stderr: string): T }, ignoreExitCode: boolean = false, additionalEnv: NodeJS.ProcessEnv = {}) {
 		return new Promise<T>((resolve, reject) => {
 			if (this.gitExecutable === null) {
 				return reject(UNABLE_TO_FIND_GIT_MSG);
@@ -1823,7 +1893,7 @@ export class DataSource extends Disposable {
 
 			resolveSpawnOutput(cp.spawn(this.gitExecutable.path, args, {
 				cwd: repo,
-				env: Object.assign({}, process.env, this.askpassEnv)
+				env: Object.assign({}, process.env, this.askpassEnv, additionalEnv)
 			})).then((values) => {
 				const status = values[0], stdout = values[1], stderr = values[2];
 				if (status.code === 0 || ignoreExitCode) {

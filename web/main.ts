@@ -1220,6 +1220,17 @@ class GitGraphView {
 			}
 		], [
 			{
+				title: 'Edit Commit Message' + ELLIPSIS,
+				visible: visibility.editMessage && this.gitBranchHead !== null,
+				onClick: () => {
+					dialog.showForm('Edit commit message for <b><i>' + abbrevCommit(hash) + '</i></b>:', [
+						{ type: DialogInputType.Text, name: 'Commit Message', default: commit.message, placeholder: '' }
+					], 'Update Message', (values) => {
+						runAction({ command: 'updateCommitMessage', repo: this.currentRepo, commitHash: hash, newMessage: <string>values[0] }, 'Updating Commit Message');
+					}, target);
+				}
+			},
+			{
 				title: 'Copy Commit Hash to Clipboard',
 				visible: visibility.copyHash,
 				onClick: () => {
@@ -3273,6 +3284,9 @@ window.addEventListener('load', () => {
 				break;
 			case 'dropCommit':
 				refreshOrDisplayError(msg.error, 'Unable to Drop Commit');
+				break;
+			case 'updateCommitMessage':
+				refreshOrDisplayError(msg.error, 'Unable to Update Commit Message');
 				break;
 			case 'dropStash':
 				refreshOrDisplayError(msg.error, 'Unable to Drop Stash');
